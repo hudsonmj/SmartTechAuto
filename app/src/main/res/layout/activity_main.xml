@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SmartTech Auto (슥삭이)"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btn_accessibility_settings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="접근성 권한 설정"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btn_overlay_settings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="다른 앱 위에 표시 권한 설정"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btn_start_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="플로팅 컨트롤러 실행"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btn_run_scenario"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="샘플 시나리오 실행 (앱 순차 실행)"
+        android:backgroundTint="#2196F3"
+        android:layout_marginBottom="16dp"/>
+        
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="* 이 앱은 배터리를 절약하기 위해 이미지 처리 대신 UI 노드 정보를 읽어 자동 클릭합니다."
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:layout_marginTop="32dp"/>
+
+</LinearLayout>
