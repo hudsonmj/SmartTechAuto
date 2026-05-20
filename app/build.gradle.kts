@@ -36,6 +36,12 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    applicationVariants.configureEach {
+        outputs.configureEach {
+            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName = "SmartTechAuto.apk"
+        }
+    }
 }
 
 dependencies {

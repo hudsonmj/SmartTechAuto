@@ -39,6 +39,18 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <activity
+            android:name=".ManageTargetsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmartTechAuto"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"/>
+
+        <activity
+            android:name=".AppSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmartTechAuto"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"/>
+
         <service
             android:name=".OverlayService"
             android:exported="false" />
