@@ -1,6 +1,10 @@
 package com.smarttech.auto
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
@@ -20,6 +24,8 @@ class OverlayService : Service() {
 
     companion object {
         var instance: OverlayService? = null
+        private const val CHANNEL_ID = "SmartTechAutoOverlay"
+        private const val NOTIFICATION_ID = 1001
     }
 
     private lateinit var windowManager: WindowManager
@@ -33,6 +39,9 @@ class OverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        createNotificationChannel()
+        startForeground(NOTIFICATION_ID, buildNotification())
+
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
         overlayView = inflater.inflate(R.layout.overlay_view, null)
@@ -65,11 +74,44 @@ class OverlayService : Service() {
         setupTouchListener()
     }
 
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "\uC624\uBC84\uB808\uC774 \uC11C\uBE44\uC2A4",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "\uD50C\uB85C\uD305 \uCEE8\uD2B8\uB864\uB7EC \uD45C\uC2DC\uB97C \uC704\uD55C \uC11C\uBE44\uC2A4"
+                setShowBadge(false)
+            }
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
+        }
+    }
+
+    private fun buildNotification(): Notification {
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+        return builder
+            .setContentTitle("SmartTech Auto")
+            .setContentText("\uD50C\uB85C\uD305 \uCEE8\uD2B8\uB864\uB7EC \uC2E4\uD589 \uC911")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setOngoing(true)
+            .setPriority(Notification.PRIORITY_LOW)
+            .build()
+    }
+
     fun showStatus(text: String) {
-        mainHandler.removeCallbacks(hideStatusRunnable)
-        tvStatus.text = text
-        tvStatus.visibility = View.VISIBLE
-        mainHandler.postDelayed(hideStatusRunnable, 2500)
+        mainHandler.post {
+            tvStatus.text = text
+            tvStatus.visibility = View.VISIBLE
+            mainHandler.removeCallbacks(hideStatusRunnable)
+            mainHandler.postDelayed(hideStatusRunnable, 2500)
+        }
     }
 
     private fun setupUI() {
@@ -83,22 +125,22 @@ class OverlayService : Service() {
         updateLearnButton(btnLearn)
 
         btnPlayPause.setOnClickListener {
-            Log.d("OverlayService", "Play button clicked, isLearning=${AutoClickService.isLearning}, isRunning=${AutoClickService.isRunning}")
             if (AutoClickService.isLearning) return@setOnClickListener
             AutoClickService.isRunning = !AutoClickService.isRunning
-            setOverlayTouchable(!AutoClickService.isRunning)
             updatePlayPauseButton(btnPlayPause)
-            Log.d("OverlayService", "Play button toggled, isRunning now=${AutoClickService.isRunning}")
-            if (AutoClickService.isRunning) showStatus("▶ 자동 클릭 시작") else showStatus("⏸ 중지됨")
+            if (AutoClickService.isRunning) {
+                showStatus("\u25B6 \uC790\uB3D9 \uD074\uB9AD \uC2DC\uC791")
+                AutoClickService.serviceInstance?.triggerAutoClickOnCurrentScreen()
+            } else {
+                showStatus("\u23F8 \uC911\uC9C0\uB428")
+            }
         }
 
         btnLearn.setOnClickListener {
-            Log.d("OverlayService", "Learn button clicked, isRunning=${AutoClickService.isRunning}, isLearning=${AutoClickService.isLearning}")
             if (AutoClickService.isRunning) return@setOnClickListener
             AutoClickService.isLearning = !AutoClickService.isLearning
             updateLearnButton(btnLearn)
-            Log.d("OverlayService", "Learn button toggled, isLearning now=${AutoClickService.isLearning}")
-            if (AutoClickService.isLearning) showStatus("🎓 학습중 - 버튼을 탭하세요") else showStatus("⏹ 학습 종료")
+            if (AutoClickService.isLearning) showStatus("\uD83C\uDF93 \uD559\uC2B5\uC911 - \uBC84\uD2BC\uC744 \uD0ED\uD558\uC138\uC694") else showStatus("\u23F9 \uD559\uC2B5 \uC885\uB8CC")
         }
 
         btnViewIds.setOnClickListener {
@@ -120,20 +162,20 @@ class OverlayService : Service() {
 
     private fun updatePlayPauseButton(btn: Button) {
         if (AutoClickService.isRunning) {
-            btn.text = "⏸ 정지"
+            btn.text = "\u23F8 \uC815\uC9C0"
             btn.setBackgroundColor(android.graphics.Color.parseColor("#FF9800"))
         } else {
-            btn.text = "▶ 시작"
+            btn.text = "\u25B6 \uC2DC\uC791"
             btn.setBackgroundColor(android.graphics.Color.parseColor("#4CAF50"))
         }
     }
 
     private fun updateLearnButton(btn: Button) {
         if (AutoClickService.isLearning) {
-            btn.text = "⏹ 학습중"
+            btn.text = "\u23F9 \uD559\uC2B5\uC911"
             btn.setBackgroundColor(android.graphics.Color.parseColor("#E91E63"))
         } else {
-            btn.text = "🎓 학습"
+            btn.text = "\uD83C\uDF93 \uD559\uC2B5"
             btn.setBackgroundColor(android.graphics.Color.parseColor("#9C27B0"))
         }
     }

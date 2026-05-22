@@ -22,7 +22,68 @@
         android:textSize="13sp"
         android:backgroundTint="#4CAF50"
         android:textColor="#FFFFFF"
-        android:layout_marginBottom="16dp"/>
+        android:layout_marginBottom="12dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:padding="8dp"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="클릭 딜레이:"
+            android:textSize="12sp"
+            android:gravity="center_vertical"
+            android:layout_marginEnd="8dp"/>
+
+        <EditText
+            android:id="@+id/et_delay_min"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:hint="최소(ms)"
+            android:textSize="12sp"
+            android:inputType="number"
+            android:gravity="center"
+            android:background="#F0F0F0"
+            android:padding="4dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=" ~ "
+            android:textSize="12sp"
+            android:gravity="center_vertical"/>
+
+        <EditText
+            android:id="@+id/et_delay_max"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:hint="최대(ms)"
+            android:textSize="12sp"
+            android:inputType="number"
+            android:gravity="center"
+            android:background="#F0F0F0"
+            android:padding="4dp"/>
+
+        <Button
+            android:id="@+id/btn_save_delay"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="저장"
+            android:textSize="11sp"
+            android:backgroundTint="#607D8B"
+            android:textColor="#FFFFFF"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:layout_marginStart="4dp"/>
+
+    </LinearLayout>
 
     <ScrollView
         android:layout_width="match_parent"

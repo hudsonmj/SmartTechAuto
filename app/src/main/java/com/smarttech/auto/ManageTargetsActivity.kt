@@ -8,9 +8,10 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.edit
 
 class ManageTargetsActivity : AppCompatActivity() {
+
+    private var currentPkg: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,7 +22,23 @@ class ManageTargetsActivity : AppCompatActivity() {
 
         btnClose.setOnClickListener { finish() }
 
+        currentPkg = AutoClickService.lastTargetPackage ?: AutoClickService.currentPackage
+        loadTargetsForCurrentPackage()
         refreshList(layoutList)
+    }
+
+    private fun loadTargetsForCurrentPackage() {
+        val pkg = currentPkg ?: return
+        val prefs = getSharedPreferences("smarttech_auto", Context.MODE_PRIVATE)
+        val targets = AutoClickService.loadTargetsForPackage(prefs, pkg)
+        AutoClickService.targetsChanged(
+            targets.map { t ->
+                when {
+                    t.isIdBased() -> "ID:${t.viewId}"
+                    else -> "TEXT:${t.text}"
+                }
+            }
+        )
     }
 
     private fun refreshList(layoutList: LinearLayout) {
@@ -29,7 +46,7 @@ class ManageTargetsActivity : AppCompatActivity() {
         val targets = AutoClickService.getLearnedTargets()
         if (targets.isEmpty()) {
             val tv = TextView(this)
-            tv.text = "저장된 항목이 없습니다"
+            tv.text = if (currentPkg != null) "\uC800\uC7A5\uB41C \uD56D\uBAA9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4" else "\uD604\uC7AC \uC571\uC744 \uAC10\uC9C0\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4"
             tv.gravity = Gravity.CENTER
             tv.setPadding(0, 32, 0, 32)
             tv.setTextColor(0xFF888888.toInt())
@@ -49,7 +66,7 @@ class ManageTargetsActivity : AppCompatActivity() {
             label.gravity = Gravity.CENTER_VERTICAL
 
             val btnDel = Button(this)
-            btnDel.text = "삭제"
+            btnDel.text = "\uC0AD\uC81C"
             btnDel.textSize = 11f
             btnDel.setBackgroundColor(0xFFF44336.toInt())
             btnDel.setTextColor(0xFFFFFFFF.toInt())
@@ -84,13 +101,20 @@ class ManageTargetsActivity : AppCompatActivity() {
     }
 
     private fun deleteTarget(index: Int) {
+        val pkg = currentPkg ?: return
         val prefs = getSharedPreferences("smarttech_auto", Context.MODE_PRIVATE)
-        val raw = prefs.getString("learned_targets", "") ?: ""
-        val lines = raw.split("\n").filter { it.isNotEmpty() }.toMutableList()
-        if (index in lines.indices) {
-            lines.removeAt(index)
-            prefs.edit { putString("learned_targets", lines.joinToString("\n")) }
-            AutoClickService.targetsChanged(lines)
+        val targets = AutoClickService.loadTargetsForPackage(prefs, pkg).toMutableList()
+        if (index in targets.indices) {
+            targets.removeAt(index)
+            AutoClickService.saveTargetsForPackage(prefs, pkg, targets)
+            AutoClickService.targetsChanged(
+                targets.map { t ->
+                    when {
+                        t.isIdBased() -> "ID:${t.viewId}"
+                        else -> "TEXT:${t.text}"
+                    }
+                }
+            )
         }
     }
 }

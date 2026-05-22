@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
@@ -21,25 +22,45 @@ class AppSettingsActivity : AppCompatActivity() {
         val layoutAppList = findViewById<LinearLayout>(R.id.layout_app_list)
         val btnAddCurrent = findViewById<Button>(R.id.btn_add_current)
         val btnClose = findViewById<Button>(R.id.btn_close)
+        val etDelayMin = findViewById<EditText>(R.id.et_delay_min)
+        val etDelayMax = findViewById<EditText>(R.id.et_delay_max)
+        val btnSaveDelay = findViewById<Button>(R.id.btn_save_delay)
+
+        val prefs = getSharedPreferences("smarttech_auto", Context.MODE_PRIVATE)
+        etDelayMin.setText(prefs.getLong("click_delay_min", 500L).toString())
+        etDelayMax.setText(prefs.getLong("click_delay_max", 1500L).toString())
+
+        btnSaveDelay.setOnClickListener {
+            val minText = etDelayMin.text.toString()
+            val maxText = etDelayMax.text.toString()
+            val min = minText.toLongOrNull()
+            val max = maxText.toLongOrNull()
+            if (min == null || max == null || min < 100 || max > 10000 || min >= max) {
+                Toast.makeText(this, "\uC62C\uBC14\uB978 \uBC94\uC704\uB97C \uC785\uB825\uD558\uC138\uC694 (100~10000, \uCD5C\uC18C < \uCD5C\uB300)", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            prefs.edit().putLong("click_delay_min", min).putLong("click_delay_max", max).apply()
+            Toast.makeText(this, "\uD074\uB9AD \uC9C0\uC5F0 \uC800\uC7A5\uB428 (\uCD5C\uC18C:${min}ms, \uCD5C\uB300:${max}ms)", Toast.LENGTH_SHORT).show()
+        }
 
         btnClose.setOnClickListener { finish() }
 
         btnAddCurrent.setOnClickListener {
             val pkg = AutoClickService.currentPackage
             if (pkg != null && pkg.isNotBlank()) {
-                val prefs = getSharedPreferences("smarttech_auto", Context.MODE_PRIVATE)
-                AutoClickService.loadAppConfigs(prefs)
+                val prefs2 = getSharedPreferences("smarttech_auto", Context.MODE_PRIVATE)
+                AutoClickService.loadAppConfigs(prefs2)
                 val existing = AutoClickService.getConfiguredPackages()
                 if (pkg in existing) {
-                    Toast.makeText(this, "이미 등록된 앱입니다: $pkg", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "\uC774\uBBF8 \uB4F1\uB85D\uB41C \uC571\uC785\uB2C8\uB2E4: $pkg", Toast.LENGTH_SHORT).show()
                 } else {
                     AutoClickService.setAppMode(pkg, "manual")
-                    AutoClickService.saveAppConfigs(prefs)
-                    Toast.makeText(this, "앱 추가됨: $pkg", Toast.LENGTH_SHORT).show()
+                    AutoClickService.saveAppConfigs(prefs2)
+                    Toast.makeText(this, "\uC571 \uCD94\uAC00\uB428: $pkg", Toast.LENGTH_SHORT).show()
                     refreshList(layoutAppList)
                 }
             } else {
-                Toast.makeText(this, "현재 실행 중인 앱을 감지할 수 없습니다", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "\uD604\uC7AC \uC2E4\uD589 \uC911\uC778 \uC571\uC744 \uAC10\uC9C0\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -60,7 +81,7 @@ class AppSettingsActivity : AppCompatActivity() {
 
         if (packages.isEmpty()) {
             val tv = TextView(this)
-            tv.text = "등록된 앱이 없습니다"
+            tv.text = "\uB4F1\uB85D\uB41C \uC571\uC774 \uC5C6\uC2B5\uB2C8\uB2E4"
             tv.gravity = Gravity.CENTER
             tv.setPadding(0, 32, 0, 32)
             tv.setTextColor(0xFF888888.toInt())
@@ -91,8 +112,8 @@ class AppSettingsActivity : AppCompatActivity() {
             val modeSwitch = Switch(this)
             val currentMode = AutoClickService.getAppMode(pkg)
             modeSwitch.isChecked = currentMode == "auto"
-            modeSwitch.textOn = "자동"
-            modeSwitch.textOff = "수동"
+            modeSwitch.textOn = "\uC790\uB3D9"
+            modeSwitch.textOff = "\uC218\uB3D9"
             modeSwitch.setTextSize(10f)
 
             modeSwitch.setOnCheckedChangeListener { _, isChecked ->
