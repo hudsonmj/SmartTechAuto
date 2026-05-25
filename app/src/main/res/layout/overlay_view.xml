@@ -15,61 +15,270 @@
         <Button
             android:id="@+id/btn_play_pause"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="40dp"
             android:text="▶ 시작"
             android:textSize="11sp"
             android:minWidth="56dp"
-            android:minHeight="40dp"
             android:textColor="#FFFFFF"
             android:backgroundTint="#4CAF50"/>
 
         <Button
-            android:id="@+id/btn_learn"
+            android:id="@+id/btn_record"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🎓 학습"
+            android:layout_height="40dp"
+            android:text="🔴 녹화"
             android:textSize="11sp"
             android:minWidth="56dp"
-            android:minHeight="40dp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#E91E63"
+            android:layout_marginStart="4dp"/>
+
+        <Button
+            android:id="@+id/btn_create"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="🛠 제작"
+            android:textSize="11sp"
+            android:minWidth="56dp"
             android:textColor="#FFFFFF"
             android:backgroundTint="#9C27B0"
             android:layout_marginStart="4dp"/>
 
         <Button
-            android:id="@+id/btn_view_ids"
+            android:id="@+id/btn_macros"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="40dp"
             android:text="📋"
             android:textSize="11sp"
             android:minWidth="36dp"
-            android:minHeight="40dp"
             android:textColor="#FFFFFF"
-            android:backgroundTint="#607D8B"
-            android:layout_marginStart="4dp"/>
-
-        <Button
-            android:id="@+id/btn_settings"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⚙️"
-            android:textSize="11sp"
-            android:minWidth="36dp"
-            android:minHeight="40dp"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#455A64"
+            android:backgroundTint="#FF9800"
             android:layout_marginStart="4dp"/>
 
         <Button
             android:id="@+id/btn_close"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="40dp"
             android:text="X"
             android:textSize="11sp"
             android:minWidth="36dp"
-            android:minHeight="40dp"
             android:textColor="#FFFFFF"
             android:backgroundTint="#F44336"
             android:layout_marginStart="4dp"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="3dp"
+        android:gravity="center_vertical">
+
+        <CheckBox
+            android:id="@+id/cb_auto_close"
+            android:layout_width="wrap_content"
+            android:layout_height="28dp"
+            android:text="팝업닫기"
+            android:textSize="10sp"
+            android:textColor="#FFFFFF"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_recording"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/tv_rec_indicator"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:gravity="center"
+            android:text="🔴 ● REC ●"
+            android:textSize="12sp"
+            android:textColor="#FF5252"
+            android:paddingHorizontal="8dp"/>
+
+        <Button
+            android:id="@+id/btn_stop_recording"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="⏹ 중지"
+            android:textSize="11sp"
+            android:minWidth="56dp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#D32F2F"
+            android:layout_marginStart="4dp"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_create"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginTop="4dp"
+        android:background="#DD222222"
+        android:padding="4dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_coord"
+                android:layout_width="90dp"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:text="📍(_,_)"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF"
+                android:background="#444444"/>
+
+            <Button
+                android:id="@+id/btn_capture"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:text="시작"
+                android:textSize="11sp"
+                android:minWidth="48dp"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#2196F3"
+                android:layout_marginStart="4dp"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="3dp">
+
+            <Button
+                android:id="@+id/btn_action_click"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:text="클릭"
+                android:textSize="11sp"
+                android:minWidth="52dp"
+                android:textColor="#FFFFFF"/>
+
+            <Button
+                android:id="@+id/btn_action_hold"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:text="길게누르기"
+                android:textSize="10sp"
+                android:minWidth="60dp"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="4dp"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="3dp">
+
+            <Button
+                android:id="@+id/btn_num_minus"
+                android:layout_width="36dp"
+                android:layout_height="30dp"
+                android:text="−"
+                android:textSize="14sp"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#555555"/>
+
+            <TextView
+                android:id="@+id/tv_number"
+                android:layout_width="36dp"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:text="1"
+                android:textSize="13sp"
+                android:textColor="#FFFFFF"
+                android:background="#444444"
+                android:layout_marginStart="2dp"/>
+
+            <Button
+                android:id="@+id/btn_num_plus"
+                android:layout_width="36dp"
+                android:layout_height="30dp"
+                android:text="+"
+                android:textSize="14sp"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#555555"
+                android:layout_marginStart="2dp"/>
+
+            <Button
+                android:id="@+id/btn_mode_count"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:text="횟수"
+                android:textSize="11sp"
+                android:minWidth="44dp"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="4dp"/>
+
+            <Button
+                android:id="@+id/btn_mode_sec"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:text="초"
+                android:textSize="11sp"
+                android:minWidth="44dp"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="2dp"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="3dp">
+
+            <Button
+                android:id="@+id/btn_add_step"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:text="➕ 스텝추가"
+                android:textSize="11sp"
+                android:minWidth="80dp"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#009688"/>
+
+            <Button
+                android:id="@+id/btn_save_script"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:text="💾 저장"
+                android:textSize="11sp"
+                android:minWidth="56dp"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#FF9800"
+                android:layout_marginStart="4dp"/>
+
+            <TextView
+                android:id="@+id/tv_step_count"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:text="0개"
+                android:textSize="11sp"
+                android:textColor="#AAAAAA"
+                android:paddingHorizontal="6dp"/>
+
+        </LinearLayout>
 
     </LinearLayout>
 

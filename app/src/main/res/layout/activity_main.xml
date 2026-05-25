@@ -44,6 +44,14 @@
         android:layout_marginBottom="16dp"/>
 
     <Button
+        android:id="@+id/btn_macros"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🤖 AI 매크로 관리"
+        android:backgroundTint="#7C4DFF"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
         android:id="@+id/btn_battery_optimization"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

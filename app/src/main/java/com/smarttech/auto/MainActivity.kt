@@ -10,10 +10,12 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.text.TextUtils
+import android.util.Log
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.smarttech.auto.ui.MacroListActivity
 
 class MainActivity : AppCompatActivity() {
 
@@ -21,7 +23,7 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            Toast.makeText(this, "\uC54C\uB9BC \uAD8C\uD55C\uC774 \uD5C8\uC6A9\uB418\uC5C8\uC2B5\uB2C8\uB2E4.", Toast.LENGTH_SHORT).show()
+            startOverlayService()
         }
     }
 
@@ -34,6 +36,7 @@ class MainActivity : AppCompatActivity() {
         val btnStartOverlay = findViewById<Button>(R.id.btn_start_overlay)
         val btnRunScenario = findViewById<Button>(R.id.btn_run_scenario)
         val btnBatteryOpt = findViewById<Button>(R.id.btn_battery_optimization)
+        val btnMacros = findViewById<Button>(R.id.btn_macros)
 
         val scenarioManager = ScenarioManager(this)
 
@@ -60,12 +63,10 @@ class MainActivity : AppCompatActivity() {
 
         btnStartOverlay.setOnClickListener {
             if (isAccessibilityServiceEnabled(this, AutoClickService::class.java) && Settings.canDrawOverlays(this)) {
-                requestNotificationPermission()
-                val intent = Intent(this, OverlayService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(intent)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else {
-                    startService(intent)
+                    startOverlayService()
                 }
             } else {
                 Toast.makeText(this, "\uC811\uADFC\uC131 \uBC0F \uC624\uBC84\uB808\uC774 \uAD8C\uD55C\uC744 \uBA3C\uC800 \uD5C8\uC6A9\uD574\uC8FC\uC138\uC694.", Toast.LENGTH_LONG).show()
@@ -84,6 +85,10 @@ class MainActivity : AppCompatActivity() {
         btnBatteryOpt.setOnClickListener {
             requestBatteryOptimizationExemption()
         }
+
+        btnMacros.setOnClickListener {
+            startActivity(Intent(this, MacroListActivity::class.java))
+        }
     }
 
     private fun requestBatteryOptimizationExemption() {
@@ -97,6 +102,20 @@ class MainActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this, "\uC774\uBBF8 \uBC30\uD130\uB9AC \uCD5C\uC801\uD654 \uC608\uC678\uC785\uB2C8\uB2E4.", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun startOverlayService() {
+        try {
+            val intent = Intent(this, OverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "startOverlayService failed", e)
+            Toast.makeText(this, "서비스 시작 실패: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 

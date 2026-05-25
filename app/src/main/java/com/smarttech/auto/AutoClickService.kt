@@ -7,6 +7,7 @@ import android.os.PowerManager
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.smarttech.auto.model.RecordedAction
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
@@ -34,12 +35,20 @@ class AutoClickService : AccessibilityService() {
     companion object {
         private const val TAG = "AutoClickService"
         var isRunning = false
+        var isRecording = false
         var isLearning = false
+        var autoClosePopups = true
+        val recordedActions = mutableListOf<RecordedAction>()
         var currentPackage: String? = null
         var lastTargetPackage: String? = null
         private var appConfigs = mutableMapOf<String, String>()
         var sharedTargets: List<LearnedTarget> = emptyList()
         var serviceInstance: AutoClickService? = null
+
+        fun addRecordedNote(text: String) {
+            recordedActions.add(RecordedAction(type = RecordedAction.Type.NOTE, note = text))
+            Log.d(TAG, "Recorded note: $text")
+        }
 
         fun getLearnedTargets(): List<LearnedTarget> = sharedTargets
 
