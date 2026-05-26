@@ -64,7 +64,7 @@ class ClickEngine(private val service: AccessibilityService) {
             val foundNode = TargetMatcher.findTargetNode(node, target)
             if (foundNode != null) {
                 showStatus("\uD074\uB9AD ${index + 1}/$targets.size")
-                performSmartClick(foundNode, delayMin, delayMax)
+                performSmartClick(foundNode, delayMin, delayMax, target.holdMs)
                 foundNode.recycle()
                 showStatus("\u2705 ${index + 1}/$targets.size \uC644\uB8CC")
                 delay(2500)
@@ -82,7 +82,7 @@ class ClickEngine(private val service: AccessibilityService) {
                 try {
                     val retryNode = TargetMatcher.findTargetNode(retryRoot, target)
                     if (retryNode != null) {
-                        performSmartClick(retryNode, delayMin, delayMax)
+                        performSmartClick(retryNode, delayMin, delayMax, target.holdMs)
                         retryNode.recycle()
                         clicked = true
                         showStatus("\u2705 ${index + 1}/$targets.size \uC644\uB8CC")
@@ -122,7 +122,7 @@ class ClickEngine(private val service: AccessibilityService) {
         }
     }
 
-    suspend fun performSmartClick(node: AccessibilityNodeInfo, delayMin: Long, delayMax: Long) {
+    suspend fun performSmartClick(node: AccessibilityNodeInfo, delayMin: Long, delayMax: Long, holdMs: Long? = null) {
         val rect = Rect()
         node.getBoundsInScreen(rect)
         val delayTime = Random.nextLong(delayMin, delayMax)
@@ -130,13 +130,53 @@ class ClickEngine(private val service: AccessibilityService) {
 
         val x = rect.centerX().toFloat()
         val y = rect.centerY().toFloat()
-        Log.d(TAG, "Click at ($x,$y) after ${delayTime}ms")
 
+        if (holdMs != null) {
+            Log.d(TAG, "Long press at ($x,$y) for ${holdMs}ms after ${delayTime}ms")
+            if (tryPerformLongClick(node)) {
+                Log.d(TAG, "ACTION_LONG_CLICK succeeded on node")
+                return
+            }
+            val clickableParent = findLongClickableParent(node)
+            if (clickableParent != null) {
+                val performed = clickableParent.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
+                clickableParent.recycle()
+                if (performed) {
+                    Log.d(TAG, "ACTION_LONG_CLICK succeeded on parent")
+                    return
+                }
+            }
+            Log.d(TAG, "ACTION_LONG_CLICK failed, falling back to gesture")
+        } else {
+            Log.d(TAG, "Click at ($x,$y) after ${delayTime}ms")
+        }
+
+        val duration = holdMs ?: 50
         val path = Path().apply { moveTo(x, y) }
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+            .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
             .build()
         service.dispatchGesture(gesture, null, null)
+    }
+
+    private fun tryPerformLongClick(node: AccessibilityNodeInfo): Boolean {
+        return node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
+    }
+
+    private fun findLongClickableParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var current = node
+        val visited = mutableListOf<AccessibilityNodeInfo>()
+        while (true) {
+            val parent = current.parent ?: break
+            visited.add(current)
+            if (parent.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)) {
+                visited.forEach { it.recycle() }
+                return parent
+            }
+            current = parent
+        }
+        visited.forEach { it.recycle() }
+        return null
     }
 
     private fun performSwipeGesture(screenWidth: Float, screenHeight: Float) {

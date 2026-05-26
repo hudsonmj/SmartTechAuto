@@ -56,6 +56,17 @@
             android:layout_marginStart="4dp"/>
 
         <Button
+            android:id="@+id/btn_log"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="📋"
+            android:textSize="11sp"
+            android:minWidth="36dp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#607D8B"
+            android:layout_marginStart="4dp"/>
+
+        <Button
             android:id="@+id/btn_close"
             android:layout_width="wrap_content"
             android:layout_height="40dp"

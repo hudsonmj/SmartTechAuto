@@ -13,8 +13,10 @@ import org.json.JSONObject
 
 data class LearnedTarget(
     val viewId: String?,
-    val text: String?
+    val text: String?,
+    val holdMs: Long? = null
 ) {
+    fun isLongPress(): Boolean = holdMs != null
     fun displayText(): String = when {
         viewId != null -> viewId
         text?.startsWith("PATH:") == true -> "\uACBD\uB85C:${text.removePrefix("PATH:")}"
@@ -22,12 +24,46 @@ data class LearnedTarget(
         text?.startsWith("CLASS:") == true -> "\uD0C0\uC785:${text.removePrefix("CLASS:")}"
         text?.startsWith("NEXTTO:") == true -> "\uC66C\uD14D\uC2A4\uD2B8:${text.removePrefix("NEXTTO:")}"
         else -> (text ?: "?")
-    }
+    } + if (isLongPress()) " (\uAE38\uAC8C)" else ""
     fun isIdBased(): Boolean = viewId != null
     fun isPathBased(): Boolean = text?.startsWith("PATH:") == true
     fun isCoordsBased(): Boolean = text?.startsWith("COORDS:") == true
     fun isClassBased(): Boolean = text?.startsWith("CLASS:") == true
     fun isNextToBased(): Boolean = text?.startsWith("NEXTTO:") == true
+
+    companion object {
+        private fun parseHoldMs(parts: List<String>): Long? {
+            for (p in parts.drop(1)) {
+                val trimmed = p.trim()
+                if (trimmed.startsWith("H:")) return trimmed.removePrefix("H:").toLongOrNull()
+            }
+            return null
+        }
+
+        fun fromLine(line: String): LearnedTarget? {
+            return when {
+                line.startsWith("ID:") -> {
+                    val after = line.removePrefix("ID:")
+                    val parts = after.split("|")
+                    LearnedTarget(parts[0], null, parseHoldMs(parts))
+                }
+                line.startsWith("TEXT:") -> {
+                    val after = line.removePrefix("TEXT:")
+                    val parts = after.split("|")
+                    LearnedTarget(null, parts[0], parseHoldMs(parts))
+                }
+                else -> null
+            }
+        }
+
+        fun toLine(target: LearnedTarget): String {
+            val suffix = if (target.holdMs != null) "|H:${target.holdMs}" else ""
+            return when {
+                target.isIdBased() -> "ID:${target.viewId}$suffix"
+                else -> "TEXT:${target.text}$suffix"
+            }
+        }
+    }
 }
 
 class AutoClickService : AccessibilityService() {
@@ -53,13 +89,7 @@ class AutoClickService : AccessibilityService() {
         fun getLearnedTargets(): List<LearnedTarget> = sharedTargets
 
         fun targetsChanged(rawLines: List<String>) {
-            sharedTargets = rawLines.mapNotNull { line ->
-                when {
-                    line.startsWith("ID:") -> LearnedTarget(line.removePrefix("ID:"), null)
-                    line.startsWith("TEXT:") -> LearnedTarget(null, line.removePrefix("TEXT:"))
-                    else -> null
-                }
-            }
+            sharedTargets = rawLines.mapNotNull { LearnedTarget.fromLine(it) }
         }
 
         fun loadAppConfigs(prefs: android.content.SharedPreferences) {
@@ -94,11 +124,7 @@ class AutoClickService : AccessibilityService() {
             val list = mutableListOf<LearnedTarget>()
             if (raw.isNotEmpty()) {
                 for (line in raw.split("\n")) {
-                    val target = when {
-                        line.startsWith("ID:") -> LearnedTarget(line.removePrefix("ID:"), null)
-                        line.startsWith("TEXT:") -> LearnedTarget(null, line.removePrefix("TEXT:"))
-                        else -> null
-                    }
+                    val target = LearnedTarget.fromLine(line)
                     if (target != null) list.add(target)
                 }
             }
@@ -106,12 +132,7 @@ class AutoClickService : AccessibilityService() {
         }
 
         fun saveTargetsForPackage(prefs: android.content.SharedPreferences, pkg: String, targets: List<LearnedTarget>) {
-            val lines = targets.joinToString("\n") { t ->
-                when {
-                    t.isIdBased() -> "ID:${t.viewId}"
-                    else -> "TEXT:${t.text}"
-                }
-            }
+            val lines = targets.joinToString("\n") { LearnedTarget.toLine(it) }
             prefs.edit().putString(getTargetsKey(pkg), lines).apply()
         }
     }
@@ -203,22 +224,25 @@ class AutoClickService : AccessibilityService() {
             event.text?.firstOrNull()?.toString()
         }
 
-        Log.d(TAG, "viewId=$viewId, text=$text")
+        val isLongClick = event.eventType == AccessibilityEvent.TYPE_VIEW_LONG_CLICKED
+        val holdMs = if (isLongClick) 2000L else null
+
+        Log.d(TAG, "viewId=$viewId, text=$text, longClick=$isLongClick")
         val pkg = eventPkg ?: currentPackage ?: return
 
         if (viewId == null && text == null) {
-            handleAnonymousNode(source, pkg)
+            handleAnonymousNode(source, pkg, holdMs)
             return
         }
 
-        val target = LearnedTarget(viewId, if (viewId != null) null else text)
+        val target = LearnedTarget(viewId, if (viewId != null) null else text, holdMs)
         addTargetForPackage(pkg, target)
         Log.d(TAG, "Learned target: ${target.displayText()} for $pkg")
         OverlayService.instance?.showStatus("\u2705 \uC800\uC7A5\uB428: ${target.displayText()}")
         source?.recycle()
     }
 
-    private fun handleAnonymousNode(source: AccessibilityNodeInfo?, pkg: String) {
+    private fun handleAnonymousNode(source: AccessibilityNodeInfo?, pkg: String, holdMs: Long? = null) {
         if (source == null) {
             OverlayService.instance?.showStatus("\u274C \uC800\uC7A5 \uC2E4\uD328 (\uC811\uADFC\uC131 \uC815\uBCF4 \uC5C6\uC74C)")
             Log.w(TAG, "Cannot learn: source is null for $pkg")
@@ -232,7 +256,7 @@ class AutoClickService : AccessibilityService() {
                 if (child != null && child != source) {
                     val st = child.text?.toString() ?: child.contentDescription?.toString()
                     if (st != null && st.isNotBlank()) {
-                        val target = LearnedTarget(null, "NEXTTO:$st")
+                        val target = LearnedTarget(null, "NEXTTO:$st", holdMs)
                         addTargetForPackage(pkg, target)
                         Log.d(TAG, "Learned by sibling: $st for $pkg")
                         OverlayService.instance?.showStatus("\u2705 \uC66C\uD14D\uC2A4\uD2B8 \uC800\uC7A5 ($pkg)")
@@ -249,7 +273,7 @@ class AutoClickService : AccessibilityService() {
 
         val className = source.className?.toString()
         if (className != null && className.isNotBlank()) {
-            val target = LearnedTarget(null, "CLASS:$className")
+            val target = LearnedTarget(null, "CLASS:$className", holdMs)
             addTargetForPackage(pkg, target)
             Log.d(TAG, "Learned by class: $className for $pkg")
             OverlayService.instance?.showStatus("\u2705 \uD0C0\uC785 \uC800\uC7A5 ($pkg)")
@@ -259,7 +283,7 @@ class AutoClickService : AccessibilityService() {
 
         val path = buildNodeIndexPath(source)
         if (path != null) {
-            val target = LearnedTarget(null, "PATH:$path")
+            val target = LearnedTarget(null, "PATH:$path", holdMs)
             addTargetForPackage(pkg, target)
             Log.d(TAG, "Learned by path: $path for $pkg")
             OverlayService.instance?.showStatus("\u2705 \uACBD\uB85C \uC800\uC7A5 ($pkg)")
@@ -267,7 +291,7 @@ class AutoClickService : AccessibilityService() {
             val rect = android.graphics.Rect()
             source.getBoundsInScreen(rect)
             val coordText = "COORDS:${rect.centerX()},${rect.centerY()}"
-            val target = LearnedTarget(null, coordText)
+            val target = LearnedTarget(null, coordText, holdMs)
             addTargetForPackage(pkg, target)
             Log.d(TAG, "Learned by coord: ($coordText) for $pkg")
             OverlayService.instance?.showStatus("\u2705 \uC88C\uD45C \uC800\uC7A5 ($pkg)")

@@ -37,6 +37,13 @@ android {
         viewBinding = true
     }
 
+    packaging {
+        resources {
+            merges += "META-INF/NOTICE.md"
+            merges += "META-INF/LICENSE.md"
+        }
+    }
+
     applicationVariants.configureEach {
         outputs.configureEach {
             (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName = "SmartTechAuto.apk"
@@ -50,6 +57,8 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

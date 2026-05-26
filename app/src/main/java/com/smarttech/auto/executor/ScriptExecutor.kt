@@ -51,7 +51,7 @@ class ScriptExecutor(private val service: AccessibilityService) {
     }
 
     private suspend fun executeStep(step: ActionStep) {
-        Log.d(TAG, "Executing: ${step.action} | ${step.description ?: step.targetValue ?: ""}")
+        LogBuffer.add(TAG, "Executing: ${step.action} | ${step.description ?: step.targetValue ?: ""}")
         showStatus("▶ ${step.description ?: step.action}")
 
         when (step.action) {
@@ -69,7 +69,7 @@ class ScriptExecutor(private val service: AccessibilityService) {
             "launch_app" -> executeLaunchApp(step)
             "wait_until" -> executeWaitUntil(step)
             "loop" -> executeLoop(step)
-            else -> Log.w(TAG, "Unknown action: ${step.action}")
+            else -> LogBuffer.addWarn(TAG, "Unknown action: ${step.action}")
         }
     }
 
@@ -126,12 +126,33 @@ class ScriptExecutor(private val service: AccessibilityService) {
     private suspend fun executeHold(step: ActionStep) {
         val holdMs = step.ms ?: 1000L
         val count = step.count ?: 1
-        val root = service.rootInActiveWindow ?: return
+        LogBuffer.add(TAG, "executeHold: holdMs=$holdMs, count=$count, targetType=${step.targetType}, x=${step.x}, y=${step.y}")
+
+        var root = service.rootInActiveWindow
+        if (root == null) {
+            LogBuffer.add(TAG, "root is null, retrying...")
+            for (attempt in 1..5) {
+                delay(500)
+                root = service.rootInActiveWindow
+                if (root != null) {
+                    LogBuffer.add(TAG, "root obtained on attempt $attempt")
+                    break
+                }
+            }
+        }
+
+        if (root == null) {
+            showStatus("⚠ 루트 윈도우를 찾을 수 없습니다 (5회 시도)")
+            LogBuffer.addWarn(TAG, "rootInActiveWindow is null after 5 retries")
+            return
+        }
+
         try {
             when (step.targetType) {
                 "coordinate" -> {
                     val x = step.x ?: 500
                     val y = step.y ?: 500
+                    LogBuffer.add(TAG, "Hold at coordinate ($x, $y)")
                     for (i in 0 until count) {
                         if (isCancelled) return
                         showStatus("✊ 길게누르기 ${i + 1}/$count (${holdMs}ms)")
@@ -146,6 +167,7 @@ class ScriptExecutor(private val service: AccessibilityService) {
                     if (node != null) {
                         val rect = Rect()
                         node.getBoundsInScreen(rect)
+                        LogBuffer.add(TAG, "Hold at node '${text}' (${rect.centerX()}, ${rect.centerY()})")
                         for (i in 0 until count) {
                             if (isCancelled) return
                             showStatus("✊ 길게누르기 ${i + 1}/$count")
@@ -154,6 +176,9 @@ class ScriptExecutor(private val service: AccessibilityService) {
                             if (i < count - 1) delay(500)
                         }
                         node.recycle()
+                    } else {
+                        showStatus("⚠ '${text}' 노드를 찾을 수 없습니다")
+                        LogBuffer.addWarn(TAG, "Node not found: $text")
                     }
                 }
             }
@@ -163,11 +188,84 @@ class ScriptExecutor(private val service: AccessibilityService) {
     }
 
     private fun performHold(x: Float, y: Float, ms: Long) {
-        val path = Path().apply { moveTo(x, y) }
+        LogBuffer.add(TAG, "performHold: x=$x, y=$y, ms=$ms")
+        val xi = x.toInt()
+        val yi = y.toInt()
+
+        // Try accessibility long click and enumerate available actions
+        val root = service.rootInActiveWindow
+        LogBuffer.add(TAG, "performHold: root=${root != null}")
+        if (root != null) {
+            try {
+                val targetNode = findNodeAtCoordinate(root, xi, yi)
+                LogBuffer.add(TAG, "performHold: targetNode=${targetNode != null}")
+                if (targetNode != null) {
+                    val longClicked = tryAccessibilityLongClickChain(targetNode)
+                    LogBuffer.add(TAG, "performHold: tryAccessibilityLongClickChain=$longClicked")
+                    targetNode.recycle()
+                    if (longClicked) {
+                        LogBuffer.add(TAG, "ACTION_LONG_CLICK chain succeeded at ($x, $y)")
+                        return
+                    }
+                }
+            } finally {
+                root.recycle()
+            }
+        }
+
+        // Fallback: GestureDescription with tiny returning-arc path
+        // This creates a valid non-zero path (duration is respected by system)
+        // while staying well within touch slop (max displacement < 1px)
+        val path = Path().apply {
+            moveTo(x, y)
+            lineTo(x + 0.5f, y + 0.5f)
+            lineTo(x, y)
+        }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0L, ms))
             .build()
-        service.dispatchGesture(gesture, null, null)
+        LogBuffer.add(TAG, "dispatchGesture at ($x, $y) for ${ms}ms")
+        val dispatched = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription) {
+                LogBuffer.add(TAG, "dispatchGesture onCompleted")
+            }
+            override fun onCancelled(gestureDescription: GestureDescription) {
+                LogBuffer.addWarn(TAG, "dispatchGesture onCancelled")
+            }
+        }, null)
+        LogBuffer.add(TAG, "dispatchGesture returned: $dispatched")
+    }
+
+    private fun tryAccessibilityLongClickChain(node: AccessibilityNodeInfo): Boolean {
+        // Log available actions on the node first
+        val actions = node.actionList
+        if (actions.isNotEmpty()) {
+            val actionDesc = actions.joinToString(", ") { "${it.id}:${it.label ?: "?"}" }
+            LogBuffer.add(TAG, "Node actions: $actionDesc")
+        }
+
+        if (node.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)) return true
+        var current: AccessibilityNodeInfo? = node
+        val toRecycle = mutableListOf<AccessibilityNodeInfo>()
+        while (true) {
+            val parent = current?.parent ?: break
+            if (current !== node) toRecycle.add(current!!)
+
+            val parentActions = parent.actionList
+            if (parentActions.isNotEmpty()) {
+                val ad = parentActions.joinToString(", ") { "${it.id}:${it.label ?: "?"}" }
+                LogBuffer.add(TAG, "Parent action: $ad")
+            }
+
+            if (parent.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)) {
+                toRecycle.add(parent)
+                toRecycle.forEach { it.recycle() }
+                return true
+            }
+            current = parent
+        }
+        toRecycle.forEach { it.recycle() }
+        return false
     }
 
     private suspend fun executeClickIfExists(step: ActionStep) {
@@ -378,9 +476,9 @@ class ScriptExecutor(private val service: AccessibilityService) {
     }
 
     private fun performClick(x: Float, y: Float) {
-        val path = Path().apply { moveTo(x, y) }
+        LogBuffer.add(TAG, "performClick: x=$x, y=$y")
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0L, 50L))
+            .addStroke(GestureDescription.StrokeDescription(Path().apply { moveTo(x, y) }, 0L, 50L))
             .build()
         service.dispatchGesture(gesture, null, null)
     }
@@ -443,6 +541,19 @@ class ScriptExecutor(private val service: AccessibilityService) {
         return null
     }
 
+    private fun findNodeAtCoordinate(node: AccessibilityNodeInfo, x: Int, y: Int): AccessibilityNodeInfo? {
+        val rect = Rect()
+        node.getBoundsInScreen(rect)
+        if (!rect.contains(x, y)) return null
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val found = findNodeAtCoordinate(child, x, y)
+            if (found != null) { child.recycle(); return found }
+            child.recycle()
+        }
+        return node
+    }
+
     private suspend fun tryClosePopups() {
         val root = service.rootInActiveWindow ?: return
         try {
@@ -483,6 +594,36 @@ class ScriptExecutor(private val service: AccessibilityService) {
     private fun showStatus(text: String) {
         mainHandler.post {
             OverlayService.instance?.showStatus(text)
+        }
+    }
+}
+
+object LogBuffer {
+    private val maxEntries = 300
+    private val entries = mutableListOf<String>()
+
+    fun add(tag: String, msg: String) {
+        synchronized(entries) {
+            val time = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+            entries.add("[$time][$tag] $msg")
+            while (entries.size > maxEntries) entries.removeAt(0)
+        }
+        Log.d(tag, msg)
+    }
+
+    fun addWarn(tag: String, msg: String) {
+        add(tag, "⚠ $msg")
+    }
+
+    fun getText(): String {
+        synchronized(entries) {
+            return entries.joinToString("\n")
+        }
+    }
+
+    fun clear() {
+        synchronized(entries) {
+            entries.clear()
         }
     }
 }

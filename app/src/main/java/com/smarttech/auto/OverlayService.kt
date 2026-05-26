@@ -14,7 +14,6 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
-import android.widget.LinearLayout
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -23,12 +22,16 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.util.Log
+import com.smarttech.auto.executor.LogBuffer
 import com.smarttech.auto.executor.ScriptExecutor
 import com.smarttech.auto.model.ActionStep
 import com.smarttech.auto.model.MacroScript
@@ -229,6 +232,7 @@ class OverlayService : Service() {
         val btnRecord = overlayView.findViewById<Button>(R.id.btn_record)
         val btnCreate = overlayView.findViewById<Button>(R.id.btn_create)
         val btnMacros = overlayView.findViewById<Button>(R.id.btn_macros)
+        val btnLog = overlayView.findViewById<Button>(R.id.btn_log)
         val btnClose = overlayView.findViewById<Button>(R.id.btn_close)
         val btnStopRecording = overlayView.findViewById<Button>(R.id.btn_stop_recording)
 
@@ -270,6 +274,138 @@ class OverlayService : Service() {
 
         btnMacros.setOnClickListener {
             showMacroPopup()
+        }
+
+        btnLog.setOnClickListener {
+            val logText = LogBuffer.getText()
+            if (logText.isEmpty()) {
+                showStatus("📋 로그가 없습니다")
+            } else {
+                val ctx = this
+
+                // ── Settings button ──
+                fun showSettingsDialog() {
+                    val emailPrefill = MailSender.getEmail(ctx)
+                    val etEmail = android.widget.EditText(ctx).apply {
+                        setText(emailPrefill)
+                        hint = "Gmail 주소"
+                        inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+                    }
+                    val etPass = android.widget.EditText(ctx).apply {
+                        hint = "앱 비밀번호"
+                        inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                    }
+                    val settingsLayout = LinearLayout(ctx).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(48, 16, 48, 16)
+                        addView(etEmail)
+                        etPass.layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply { setMargins(0, 12, 0, 0) }
+                        addView(etPass)
+                    }
+                    AlertDialog.Builder(ctx)
+                        .setTitle("⚙ Gmail 설정")
+                        .setMessage("Gmail 앱 비밀번호가 필요합니다\n(Gmail 설정 → 보안 → 앱 비밀번호)")
+                        .setView(settingsLayout)
+                        .setPositiveButton("저장") { _, _ ->
+                            val e = etEmail.text.toString().trim()
+                            val p = etPass.text.toString().trim()
+                            if (e.isNotBlank() && p.isNotBlank()) {
+                                MailSender.saveCredentials(ctx, e, p)
+                                showStatus("✅ Gmail 계정 저장 완료")
+                            } else {
+                                showStatus("⚠ 이메일과 비밀번호를 입력해주세요")
+                            }
+                        }
+                        .setNegativeButton("취소", null)
+                        .create()
+                        .also { d ->
+                            d.window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                            d.show()
+                        }
+                }
+
+                // ── Log text ──
+                val textView = TextView(ctx).apply {
+                    text = logText
+                    textSize = 10f
+                    typeface = android.graphics.Typeface.MONOSPACE
+                    setTextColor(Color.WHITE)
+                    setBackgroundColor(Color.parseColor("#AA000000"))
+                    setPadding(24, 24, 24, 24)
+                    setTextIsSelectable(true)
+                    setMaxHeight(600)
+                }
+
+                // ── Button row ──
+                val clearBtn = Button(ctx).apply {
+                    text = "🗑 지우기"
+                    setTextColor(Color.WHITE)
+                    setBackgroundColor(Color.parseColor("#F44336"))
+                    setOnClickListener {
+                        LogBuffer.clear()
+                        textView.text = "(로그 지워짐)"
+                    }
+                }
+                val emailBtn = Button(ctx)
+                emailBtn.text = if (MailSender.isConfigured(ctx)) "✉ 메일보내기" else "✉ 메일보내기 (설정필요)"
+                emailBtn.setTextColor(Color.WHITE)
+                emailBtn.setBackgroundColor(Color.parseColor("#2196F3"))
+                emailBtn.setOnClickListener {
+                    if (!MailSender.isConfigured(ctx)) {
+                        showSettingsDialog()
+                        return@setOnClickListener
+                    }
+                    emailBtn.isEnabled = false
+                    emailBtn.text = "⏳ 보내는 중..."
+                    val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date())
+                    MailSender.sendLogAsync(
+                        context = ctx,
+                        to = "hudsonmj@nate.com",
+                        subject = "로그 ($dateStr)",
+                        body = LogBuffer.getText()
+                    ) { success, msg ->
+                        emailBtn.isEnabled = true
+                        emailBtn.text = "✉ 메일보내기"
+                        showStatus(if (success) "✅ $msg" else "⚠ $msg")
+                    }
+                }
+                val settingsBtn = Button(ctx).apply {
+                    text = "⚙"
+                    setTextColor(Color.WHITE)
+                    setBackgroundColor(Color.parseColor("#757575"))
+                    setOnClickListener { showSettingsDialog() }
+                }
+                val btnRow = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(clearBtn)
+                    emailBtn.layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { setMargins(8, 0, 0, 0) }
+                    addView(emailBtn)
+                    settingsBtn.layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { setMargins(8, 0, 0, 0) }
+                    addView(settingsBtn)
+                }
+
+                val layout = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(textView)
+                    addView(btnRow)
+                }
+                val dialog = AlertDialog.Builder(ctx)
+                    .setTitle("📋 실행 로그")
+                    .setView(layout)
+                    .setPositiveButton("닫기", null)
+                    .create()
+                dialog.window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                dialog.show()
+            }
         }
 
         btnClose.setOnClickListener {
@@ -543,7 +679,7 @@ class OverlayService : Service() {
             WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
             layoutFlag,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSPARENT
         ).apply { gravity = Gravity.TOP or Gravity.START }
